@@ -1,164 +1,203 @@
-Ôªø!DOCTYPE html
-html
-head
-    title‰øÑÁΩóÊñØÊñπÂùótitle
-    meta name=viewport content=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no
-    style
-        body {
-            display flex;
-            justify-content center;
-            align-items center;
-            min-height 100vh;
-            margin 0;
-            background #2c3e50;
-            color #ecf0f1;
-            font-family Arial, sans-serif;
-        }
-
-        #game-container {
-            display flex;
-            gap 20px;
-            background #34495e;
-            padding 20px;
-            border-radius 10px;
-            box-shadow 0 0 20px rgba(0,0,0,0.3);
-        }
-
+<!DOCTYPE html>
+<html>
+<head>
+    <title>∂Ì¬ﬁÀπ∑ΩøÈ</title>
+    <style>
         canvas {
-            background #000;
-            border 2px solid #ecf0f1;
+            border: 2px solid #333;
         }
-
-        #info-panel {
-            display flex;
-            flex-direction column;
-            gap 15px;
-            min-width 150px;
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }
+    </style>
+</head>
+<body>
+    <div>
+        <div style="text-align: center; margin-bottom: 10px;">
+            µ√∑÷: <span id="score">0</span>
+        </div>
+        <canvas id="game" width="300" height="600"></canvas>
+    </div>
 
-        .info-box {
-            background #2c3e50;
-            padding 10px;
-            border-radius 5px;
-        }
-
-        #mobile-controls {
-            display none;
-            gap 5px;
-            margin-top 20px;
-            flex-wrap wrap;
-            justify-content center;
-        }
-
-        .mobile-btn {
-            padding 12px;
-            background #3498db;
-            border none;
-            border-radius 5px;
-            color white;
-            font-size 16px;
-            cursor pointer;
-            flex 1 1 45%;
-        }
-
-        .mobile-btnactive {
-            background #2980b9;
-        }
-
-        #pause-overlay {
-            display none;
-            position absolute;
-            top 50%;
-            left 50%;
-            transform translate(-50%, -50%);
-            background rgba(0,0,0,0.8);
-            color white;
-            padding 20px 40px;
-            border-radius 10px;
-            font-size 24px;
-        }
-    style
-head
-body
-    div id=game-container
-        div id=info-panel
-            div class=info-box
-                divÂæóÂàÜ span id=score0spandiv
-                divÊ∂àÈô§Ë°å span id=lines0spandiv
-            div
-            div class=info-box
-                div‰∏ã‰∏Ä‰∏™div
-                canvas id=next-piece width=80 height=80canvas
-            div
-        div
-        canvas id=game width=300 height=600canvas
-    div
-    
-    div id=mobile-controlsdiv
-    div id=pause-overlayPAUSEDdiv
-
-script
+<script>
 const canvas = document.getElementById('game');
-const nextCanvas = document.getElementById('next-piece');
 const ctx = canvas.getContext('2d');
-const nextCtx = nextCanvas.getContext('2d');
 const BLOCK_SIZE = 30;
 const COLS = 10;
 const ROWS = 20;
 let score = 0;
-let lines = 0;
-let isPaused = false;
-let nextPiece = null;
+
+// ”Œœ∑«¯”Ú ˝◊È
+const board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+
+// ∑ΩøÈ–Œ◊¥∫Õ—’…´
+const SHAPES = [
+    [[1,1,1,1]],                         // I
+    [[1,1,1],[0,1,0]],                   // T
+    [[1,1,1],[1,0,0]],                   // L
+    [[1,1,1],[0,0,1]],                   // J
+    [[1,1],[1,1]],                       // O
+    [[1,1,0],[0,1,1]],                   // S
+    [[0,1,1],[1,1,0]]                    // Z
+];
+
+const COLORS = [
+    '#00f0f0', '#f0a000', '#f00000',
+    '#0000f0', '#f0f000', '#00f000', '#a000f0'
+];
+
 let currentPiece = null;
 let currentPieceX = 0;
 let currentPieceY = 0;
 
- ÂàùÂßãÂåñÁßªÂä®Á´ØÊéßÂà∂ÊåâÈíÆ
-if (MobiAndroidi.test(navigator.userAgent)) {
-    const controls = document.getElementById('mobile-controls');
-    controls.style.display = 'flex';
-    
-    const buttons = [
-        ['‚Üê', 'moveLeft'], ['‚Üí', 'moveRight'], ['‚Üª', 'rotate'],
-        ['‚Üì', 'moveDown'], ['‚è¨', 'drop'], ['‚è∏Ô∏è', 'togglePause'], ['‚Üª', 'restart']
-    ];
-    
-    buttons.forEach(([text, action]) = {
-        const btn = document.createElement('button');
-        btn.className = 'mobile-btn';
-        btn.textContent = text;
-        btn.onclick = () = handleAction(action);
-        controls.appendChild(btn);
-    });
+function createPiece() {
+    const type = Math.floor(Math.random() * SHAPES.length);
+    return {
+        shape: SHAPES[type],
+        color: COLORS[type]
+    };
 }
 
- Ê∏∏ÊàèÂàùÂßãÂåñ
-function initGame() {
-    board.forEach(row = row.fill(0));
-    score = 0;
-    lines = 0;
-    document.getElementById('score').textContent = 0;
-    document.getElementById('lines').textContent = 0;
-    nextPiece = createPiece();
-    currentPiece = createPiece();
-    currentPieceX = Math.floor(COLS2) - Math.floor(currentPiece.shape[0].length2);
-    currentPieceY = 0;
+function drawBlock(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1);
 }
 
- Êñ∞Â¢ûÔºöÊìç‰ΩúÂ§ÑÁêÜÂáΩÊï∞
-function handleAction(action) {
-    if (isPaused && action !== 'togglePause') return;
-    
-    switch(action) {
-        case 'moveLeft' move(-1); break;
-        case 'moveRight' move(1); break;
-        case 'rotate' rotate(); break;
-        case 'moveDown' moveDown(); break;
-        case 'drop' drop(); break;
-        case 'togglePause' togglePause(); break;
-        case 'restart' initGame(); break;
+function draw() {
+    // «Âø’ª≠≤º
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // ªÊ÷∆”Œœ∑«¯”Ú
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (board[y][x]) {
+                drawBlock(x, y, board[y][x]);
+            }
+        }
+    }
+
+    // ªÊ÷∆µ±«∞∑ΩøÈ
+    if (currentPiece) {
+        currentPiece.shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value) {
+                    drawBlock(currentPieceX + x, currentPieceY + y, currentPiece.color);
+                }
+            });
+        });
     }
 }
 
- Êñ∞Â¢ûÔºöÊöÇÂÅúÂäüËÉΩ
-function toggleP
+function isValidMove(piece, x, y) {
+    return piece.shape.every((row, dy) => {
+        return row.every((value, dx) => {
+            let newX = x + dx;
+            let newY = y + dy;
+            return (
+                value === 0 ||
+                (newX >= 0 && newX < COLS &&
+                 newY >= 0 && newY < ROWS &&
+                 !board[newY][newX])
+            );
+        });
+    });
+}
+
+function rotatePiece(piece) {
+    const newShape = piece.shape[0].map((_, i) =>
+        piece.shape.map(row => row[i]).reverse()
+    );
+    return { ...piece, shape: newShape };
+}
+
+function mergePiece() {
+    currentPiece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value) {
+                board[currentPieceY + y][currentPieceX + x] = currentPiece.color;
+            }
+        });
+    });
+}
+
+function clearLines() {
+    let linesCleared = 0;
+    for (let y = ROWS - 1; y >= 0; y--) {
+        if (board[y].every(cell => cell !== 0)) {
+            board.splice(y, 1);
+            board.unshift(Array(COLS).fill(0));
+            linesCleared++;
+            y++; // ºÏ≤ÈÕ¨“ª––ø…ƒ‹µƒ–¬ƒ⁄»›
+        }
+    }
+    if (linesCleared > 0) {
+        score += linesCleared * 100;
+        document.getElementById('score').textContent = score;
+    }
+}
+
+function gameStep() {
+    if (!currentPiece) {
+        currentPiece = createPiece();
+        currentPieceX = Math.floor(COLS/2) - Math.floor(currentPiece.shape[0].length/2);
+        currentPieceY = 0;
+        
+        if (!isValidMove(currentPiece, currentPieceX, currentPieceY)) {
+            alert('”Œœ∑Ω· ¯! µ√∑÷: ' + score);
+            location.reload();
+        }
+    }
+
+    // œ¬¬‰¬ﬂº≠
+    if (isValidMove(currentPiece, currentPieceX, currentPieceY + 1)) {
+        currentPieceY++;
+    } else {
+        mergePiece();
+        clearLines();
+        currentPiece = null;
+    }
+
+    draw();
+}
+
+// øÿ÷∆¥¶¿Ì
+document.addEventListener('keydown', event => {
+    if (!currentPiece) return;
+
+    switch(event.key) {
+        case 'ArrowLeft':
+            if (isValidMove(currentPiece, currentPieceX - 1, currentPieceY)) {
+                currentPieceX--;
+            }
+            break;
+        case 'ArrowRight':
+            if (isValidMove(currentPiece, currentPieceX + 1, currentPieceY)) {
+                currentPieceX++;
+            }
+            break;
+        case 'ArrowDown':
+            if (isValidMove(currentPiece, currentPieceX, currentPieceY + 1)) {
+                currentPieceY++;
+            }
+            break;
+        case 'ArrowUp':
+            const rotated = rotatePiece(currentPiece);
+            if (isValidMove(rotated, currentPieceX, currentPieceY)) {
+                currentPiece = rotated;
+            }
+            break;
+    }
+    draw();
+});
+
+// ”Œœ∑—≠ª∑
+setInterval(gameStep, 1000);
+</script>
+</body>
+</html>
