@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>俄罗斯方块</title>
+    <style>
+        canvas {
+            border: 2px solid #333;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div style="text-align: center; margin-bottom: 10px;">
+            得分: <span id="score">0</span>
+        </div>
+        <canvas id="game" width="300" height="600"></canvas>
+    </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const BLOCK_SIZE = 30;
+const COLS = 10;
+const ROWS = 20;
+let score = 0;
+
+// 游戏区域数组
+const board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+
+// 方块形状和颜色
+const SHAPES = [
+    [[1,1,1,1]],                         // I
+    [[1,1,1],[0,1,0]],                   // T
+    [[1,1,1],[1,0,0]],                   // L
+    [[1,1,1],[0,0,1]],                   // J
+    [[1,1],[1,1]],                       // O
+    [[1,1,0],[0,1,1]],                   // S
+    [[0,1,1],[1,1,0]]                    // Z
+];
+
+const COLORS = [
+    '#00f0f0', '#f0a000', '#f00000',
+    '#0000f0', '#f0f000', '#00f000', '#a000f0'
+];
+
+let currentPiece = null;
+let currentPieceX = 0;
+let currentPieceY = 0;
+
+function createPiece() {
+    const type = Math.floor(Math.random() * SHAPES.length);
+    return {
+        shape: SHAPES[type],
+        color: COLORS[type]
+    };
+}
+
+function drawBlock(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1);
+}
+
+function draw() {
+    // 清空画布
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 绘制游戏区域
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (board[y][x]) {
+                drawBlock(x, y, board[y][x]);
+            }
+        }
+    }
+
+    // 绘制当前方块
+    if (currentPiece) {
+        currentPiece.shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value) {
+                    drawBlock(currentPieceX + x, currentPieceY + y, currentPiece.color);
+                }
+            });
+        });
+    }
+}
+
+function isValidMove(piece, x, y) {
+    return piece.shape.every((row, dy) => {
+        return row.every((value, dx) => {
+            let newX = x + dx;
+            let newY = y + dy;
+            return (
+                value === 0 ||
+                (newX >= 0 && newX < COLS &&
+                 newY >= 0 && newY < ROWS &&
+                 !board[newY][newX])
+            );
+        });
+    });
+}
+
+function rotatePiece(piece) {
+    const newShape = piece.shape[0].map((_, i) =>
+        piece.shape.map(row => row[i]).reverse()
+    );
+    return { ...piece, shape: newShape };
+}
+
+function mergePiece() {
+    currentPiece.shape.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value) {
+                board[currentPieceY + y][currentPieceX + x] = currentPiece.color;
+            }
+        });
+    });
+}
+
+function clearLines() {
+    let linesCleared = 0;
+    for (let y = ROWS - 1; y >= 0; y--) {
+        if (board[y].every(cell => cell !== 0)) {
+            board.splice(y, 1);
+            board.unshift(Array(COLS).fill(0));
+            linesCleared++;
+            y++; // 检查同一行可能的新内容
+        }
+    }
+    if (linesCleared > 0) {
+        score += linesCleared * 100;
+        document.getElementById('score').textContent = score;
+    }
+}
+
+function gameStep() {
+    if (!currentPiece) {
+        currentPiece = createPiece();
+        currentPieceX = Math.floor(COLS/2) - Math.floor(currentPiece.shape[0].length/2);
+        currentPieceY = 0;
+        
+        if (!isValidMove(currentPiece, currentPieceX, currentPieceY)) {
+            alert('游戏结束! 得分: ' + score);
+            location.reload();
+        }
+    }
+
+    // 下落逻辑
+    if (isValidMove(currentPiece, currentPieceX, currentPieceY + 1)) {
+        currentPieceY++;
+    } else {
+        mergePiece();
+        clearLines();
+        currentPiece = null;
+    }
+
+    draw();
+}
+
+// 控制处理
+document.addEventListener('keydown', event => {
+    if (!currentPiece) return;
+
+    switch(event.key) {
+        case 'ArrowLeft':
+            if (isValidMove(currentPiece, currentPieceX - 1, currentPieceY)) {
+                currentPieceX--;
+            }
+            break;
+        case 'ArrowRight':
+            if (isValidMove(currentPiece, currentPieceX + 1, currentPieceY)) {
+                currentPieceX++;
+            }
+            break;
+        case 'ArrowDown':
+            if (isValidMove(currentPiece, currentPieceX, currentPieceY + 1)) {
+                currentPieceY++;
+            }
+            break;
+        case 'ArrowUp':
+            const rotated = rotatePiece(currentPiece);
+            if (isValidMove(rotated, currentPieceX, currentPieceY)) {
+                currentPiece = rotated;
+            }
+            break;
+    }
+    draw();
+});
+
+// 游戏循环
+setInterval(gameStep, 1000);
+</script>
+</body>
+</html>
